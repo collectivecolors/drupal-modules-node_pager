@@ -1,0 +1,169 @@
+<?php
+// $Id$
+
+/*
+ * @file
+ *
+ * Implements a node pager as a Panels content type.
+ *
+ * We specify a view that determines the order of our nodes.  This view's
+ * results are used to populate previous and next links that can be embedded
+ * on a Panel when a node context has been found.
+ */
+
+//------------------------------------------------------------------------------
+// Drupal hooks
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_menu().
+ *
+ * @see http://api.drupal.org/api/function/hook_menu/6
+ */
+function node_pager_menu() {
+
+  // Define a AHAH views display options callback.
+  $items['node_pager/js/display_options'] = array(
+    'page callback' => 'node_pager_display_options_ahah',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_theme().
+ *
+ * @see http://api.drupal.org/api/function/hook_theme/6
+ */
+function node_pager_theme() {
+  return array(
+    'node_pager' => array(
+      'arguments' => array('node' => NULL, 'previous' => array(), 'next' => array(), 'overview_path' => NULL),
+    ),
+  );
+}
+
+//------------------------------------------------------------------------------
+// CTools hooks
+//------------------------------------------------------------------------------
+
+/**
+ * Implementation of hook_ctools_plugin_directory().
+ */
+function node_pager_ctools_plugin_directory($module, $plugin) {
+  if ($module == 'ctools' && !empty($plugin)) {
+    return "plugins/$plugin";
+  }
+}
+
+//------------------------------------------------------------------------------
+// Menu callbacks
+//------------------------------------------------------------------------------
+
+/**
+ * Return html option set of available displays for view with specified view id
+ */
+function node_pager_display_options_ahah() {
+
+  $view_id = $_GET['view_id'];
+  $options = '';
+
+  if ($view_id > 0) {
+    foreach (node_pager_get_view_displays($view_id) as $name => $label) {
+      $options .= "<option value='$name'>$label</option>";
+    }
+  }
+  print $options;
+  exit;
+}
+
+//------------------------------------------------------------------------------
+// Theme functions
+//------------------------------------------------------------------------------
+
+/**
+ * Theme a node pager Panels content type display.
+ */
+function theme_node_pager($node, $previous, $next, $overview_path) {
+  $output = '<div class="node-pager">';
+
+  if ($overview_path) {
+    $output .= '<div class="node-overview-section">'
+            . l(t('Overview'), $overview_path, array('class' => 'node-overview-link'))
+            . '</div>';
+  }
+  if (count($previous)) {
+    $output .= '<div class="node-prev-section">'
+            . l(t('Previous'), 'node/' . $previous[0], array('class' => 'node-prev-link'))
+            . '</div>';
+  }
+  if (count($next)) {
+    $output .= '<div class="node-next-section">'
+            . l(t('Next'), 'node/'. $next[0], array('class' => 'node-next-link'))
+            . '</div>';
+  }
+
+  $output .= '</div>';
+  return $output;
+}
+
+//------------------------------------------------------------------------------
+// Internal utilities
+//------------------------------------------------------------------------------
+
+/**
+ * Gather a listing of all views so that we may choose ANY view
+ */
+function node_pager_get_views($return_object = FALSE) {
+
+  $views = array();
+
+  foreach (views_get_all_views() as $view) {
+
+    if ($return_object) {
+      $views[$view->vid] = $view;
+    }
+    else {
+      $views[$view->vid] = $view->name;
+    }
+  }
+  return $views;
+}
+
+//------------------------------------------------------------------------------
+
+/**
+ * Gathers the available display options for the view operating on this term
+ * or vocabulary.
+ */
+function node_pager_get_view_displays($view = NULL) {
+  $displays = array();
+
+  if ($view === NULL) {
+    foreach(node_pager_get_views(TRUE) as $view_id => $view) {
+      foreach($view->display as $display_name => $display) {
+        // Suppress the 'default' plugin display
+        $add = ($display->display_plugin != 'default') ? ' - ' . $display->display_plugin : '';
+        $displays[$view_id . ':' . $display_name] = $view->name . ' - ' . $display->display_title . $add;
+      }
+    }
+  }
+  else {
+    // If it is a name or vid we can use this...
+    if (!is_object($view)) {
+      $view = views_get_view($view);
+    }
+    if (is_object($view)) {
+      foreach($view->display as $display_name => $display) {
+        // Suppress the 'default' plugin display
+        $add = ($display->display_plugin != 'default') ? ' - ' . $display->display_plugin : '';
+        $displays[$view->vid . ':' . $display_name] = $display->display_title . $add;
+      }
+    }
+  }
+  return $displays;
+}
+

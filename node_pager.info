@@ -1,0 +1,8 @@
+name = Node pager
+description = Provides a Panels content type that embeds a previous / next pager for a node.
+package = Panels content types
+dependencies[] = ctools
+dependencies[] = panels
+dependencies[] = page_manager
+dependencies[] = views
+core = 6.x
